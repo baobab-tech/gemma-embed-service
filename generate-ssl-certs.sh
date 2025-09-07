@@ -19,9 +19,13 @@ openssl x509 -req -in certs/csr.pem -signkey certs/key.pem -out certs/cert.pem -
 # Clean up CSR file
 rm certs/csr.pem
 
+# Set appropriate permissions for container access
+chmod 644 certs/key.pem certs/cert.pem
+
 echo "SSL certificates generated successfully!"
 echo "  Private key: certs/key.pem"
 echo "  Certificate: certs/cert.pem"
+echo "  Permissions set to 644 for container compatibility"
 echo ""
 echo "To use SSL, set the environment variable: USE_SSL=true"
 echo ""

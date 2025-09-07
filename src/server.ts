@@ -107,7 +107,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8082;
 // SSL Configuration
 const SSL_KEY_PATH = process.env.SSL_KEY_PATH || path.join(__dirname, '../certs/key.pem');
 const SSL_CERT_PATH = process.env.SSL_CERT_PATH || path.join(__dirname, '../certs/cert.pem');
-const USE_SSL = process.env.USE_SSL === 'true' || false;
+const USE_SSL = process.env.USE_SSL === 'false' ? false : true; // Default to true, only false if explicitly set
 
 // Middleware
 app.use(helmet());
@@ -215,7 +215,7 @@ app.use((_req: Request, res: Response) => {
   });
 });
 
-// Start server
+// Start server with SSL fallback
 async function startServer(): Promise<void> {
   try {
     console.log('Starting Gemma embedding service...');
@@ -224,44 +224,63 @@ async function startServer(): Promise<void> {
     await embeddingService.initialize();
     
     if (USE_SSL) {
-      // Check if SSL certificates exist
-      if (!fs.existsSync(SSL_KEY_PATH) || !fs.existsSync(SSL_CERT_PATH)) {
-        console.error('SSL certificates not found. Please ensure the following files exist:');
-        console.error(`  Private key: ${SSL_KEY_PATH}`);
-        console.error(`  Certificate: ${SSL_CERT_PATH}`);
-        console.error('Or set USE_SSL=false to use HTTP instead.');
-        process.exit(1);
+      try {
+        // Check if SSL certificates exist
+        if (!fs.existsSync(SSL_KEY_PATH) || !fs.existsSync(SSL_CERT_PATH)) {
+          console.warn('⚠️  SSL certificates not found:');
+          console.warn(`    Private key: ${SSL_KEY_PATH}`);
+          console.warn(`    Certificate: ${SSL_CERT_PATH}`);
+          console.warn('⚠️  Falling back to HTTP mode...');
+          console.warn('    To generate SSL certificates, run: ./generate-ssl-certs.sh');
+          throw new Error('SSL certificates not found');
+        }
+
+        // Read SSL certificates
+        const sslOptions = {
+          key: fs.readFileSync(SSL_KEY_PATH),
+          cert: fs.readFileSync(SSL_CERT_PATH)
+        };
+
+        // Create HTTPS server
+        const httpsServer = https.createServer(sslOptions, app);
+        
+        httpsServer.listen(PORT, () => {
+          console.log(`🔒 Gemma embedding service running on HTTPS port ${PORT}`);
+          console.log(`Available endpoints:`);
+          console.log(`  GET  https://localhost:${PORT}/health - Health check`);
+          console.log(`  POST https://localhost:${PORT}/embed - Generate embeddings`);
+          console.log(`  POST https://localhost:${PORT}/rerank - Rerank documents`);
+        });
+
+        console.log('✅ SSL/HTTPS mode enabled successfully');
+        return;
+
+      } catch (sslError) {
+        console.warn('⚠️  Failed to start HTTPS server:', sslError instanceof Error ? sslError.message : sslError);
+        console.warn('⚠️  Falling back to HTTP mode...');
       }
-
-      // Read SSL certificates
-      const sslOptions = {
-        key: fs.readFileSync(SSL_KEY_PATH),
-        cert: fs.readFileSync(SSL_CERT_PATH)
-      };
-
-      // Create HTTPS server
-      const httpsServer = https.createServer(sslOptions, app);
-      
-      httpsServer.listen(PORT, () => {
-        console.log(`Gemma embedding service running on HTTPS port ${PORT}`);
-        console.log(`Available endpoints:`);
-        console.log(`  GET  https://localhost:${PORT}/health - Health check`);
-        console.log(`  POST https://localhost:${PORT}/embed - Generate embeddings`);
-        console.log(`  POST https://localhost:${PORT}/rerank - Rerank documents`);
-      });
-    } else {
-      // Create HTTP server
-      app.listen(PORT, () => {
-        console.log(`Gemma embedding service running on HTTP port ${PORT}`);
-        console.log(`Available endpoints:`);
-        console.log(`  GET  http://localhost:${PORT}/health - Health check`);
-        console.log(`  POST http://localhost:${PORT}/embed - Generate embeddings`);
-        console.log(`  POST http://localhost:${PORT}/rerank - Rerank documents`);
-        console.log('Note: Use USE_SSL=true to enable HTTPS');
-      });
     }
+
+    // Create HTTP server (fallback or when USE_SSL=false)
+    app.listen(PORT, () => {
+      console.log(`🌐 Gemma embedding service running on HTTP port ${PORT}`);
+      console.log(`Available endpoints:`);
+      console.log(`  GET  http://localhost:${PORT}/health - Health check`);
+      console.log(`  POST http://localhost:${PORT}/embed - Generate embeddings`);
+      console.log(`  POST http://localhost:${PORT}/rerank - Rerank documents`);
+      
+      if (USE_SSL) {
+        console.warn('⚠️  Running in HTTP mode due to SSL setup failure');
+        console.warn('    To enable HTTPS:');
+        console.warn('    1. Run ./generate-ssl-certs.sh to create certificates');
+        console.warn('    2. Or provide custom certificates via SSL_KEY_PATH and SSL_CERT_PATH');
+      } else {
+        console.log('ℹ️  HTTP mode (set USE_SSL=true to enable HTTPS)');
+      }
+    });
+
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 }

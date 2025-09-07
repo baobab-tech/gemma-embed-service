@@ -1,34 +1,42 @@
-# Use Node.js 24 Alpine 3.22 image for smaller size
-FROM node:24-alpine3.22
+# Use Node.js 24 Debian slim image for glibc compatibility
+FROM node:24-slim
 
 # Set working directory
 WORKDIR /app
 
 # Install Python and build dependencies for native modules
-RUN apk add --no-cache python3 make g++ 
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/* 
+
+# Install pnpm globally
+RUN npm install -g pnpm
 
 # Copy package files first for better caching
-COPY package*.json ./
+COPY package*.json pnpm-lock.yaml ./
 COPY tsconfig.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (production and dev for build)
+RUN pnpm install --frozen-lockfile
 
-# Install development dependencies for build
-RUN npm install --only=dev
-
-# Copy source code
+# Copy source code and SSL generation script
 COPY src ./src
+COPY generate-ssl-certs.sh ./
 
 # Build TypeScript
-RUN npm run build
+RUN pnpm run build
 
 # Remove dev dependencies after build
-RUN npm prune --production
+RUN pnpm prune --production
+
+# Create certs directory and make SSL script executable
+RUN mkdir -p certs && chmod +x generate-ssl-certs.sh
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid 1001 --system --create-home nodejs
 
 # Change ownership of app directory
 RUN chown -R nodejs:nodejs /app
@@ -48,4 +56,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     req.end();"
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]

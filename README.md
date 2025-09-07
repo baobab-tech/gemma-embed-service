@@ -23,13 +23,13 @@ git clone <repository-url> # or create the files manually
 cd gemma-embed-service
 
 # Start the service
-docker-compose up -d
+docker compose up -d
 
 # Check service status
-docker-compose ps
+docker compose ps
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### Using Docker directly

@@ -5,9 +5,15 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8082:8082"
+# Uncomment the lines below to mount SSL certificates from host:
+    volumes:
+      - ./certs:/app/certs:ro
     environment:
       - NODE_ENV=production
       - PORT=8082
+      - USE_SSL=true  # Default to SSL, set to false to disable HTTPS
+      - SSL_KEY_PATH=/app/certs/key.pem
+      - SSL_CERT_PATH=/app/certs/cert.pem
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "const http = require('http'); const options = { hostname: 'localhost', port: 8082, path: '/health', timeout: 2000 }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1)); req.end();"]
