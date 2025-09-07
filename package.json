@@ -1,0 +1,32 @@
+{
+  "name": "gemma-embed-service",
+  "version": "1.0.0",
+  "description": "Embedding and reranking service using Hugging Face Transformers with Gemma model",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "clean": "rm -rf dist",
+    "docker:build": "docker build -t gemma-embed-service .",
+    "docker:run": "docker run -p 8082:8082 gemma-embed-service"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.0.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "compression": "^1.7.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/compression": "^1.7.5",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "tsx": "^4.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
