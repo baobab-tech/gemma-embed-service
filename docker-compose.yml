@@ -7,13 +7,15 @@ services:
       - "8082:8082"
 # Uncomment the lines below to mount SSL certificates from host:
     volumes:
-      - ./certs:/app/certs:ro
+      - /etc/ssl/certs/cloudflare/cert.pem:/app/certs/cert.pem:ro
+      - /etc/ssl/private/cloudflare/privkey.pem:/app/certs/key.pem:ro
     environment:
       - NODE_ENV=production
       - PORT=8082
       - USE_SSL=true  # Default to SSL, set to false to disable HTTPS
       - SSL_KEY_PATH=/app/certs/key.pem
       - SSL_CERT_PATH=/app/certs/cert.pem
+      - API_KEY=${API_KEY}  # Set via environment variable
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "const http = require('http'); const options = { hostname: 'localhost', port: 8082, path: '/health', timeout: 2000 }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1)); req.end();"]
@@ -22,11 +24,11 @@ services:
       retries: 3
       start_period: 40s
     # Optional: limit resources
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 4G
-        reservations:
-          cpus: '1.0'
-          memory: 2G
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2.0'
+    #       memory: 4G
+    #     reservations:
+    #       cpus: '1.0'
+    #       memory: 2G

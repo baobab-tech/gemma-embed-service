@@ -34,9 +34,10 @@ RUN pnpm prune --production
 # Create certs directory and make SSL script executable
 RUN mkdir -p certs && chmod +x generate-ssl-certs.sh
 
-# Create non-root user for security
-RUN groupadd --gid 1001 nodejs && \
-    useradd --uid 1001 --gid 1001 --system --create-home nodejs
+# Create ssl-cert group with same GID as host and non-root user for security
+RUN groupadd --gid 110 ssl-cert && \
+    groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid 1001 --groups ssl-cert --system --create-home nodejs
 
 # Change ownership of app directory
 RUN chown -R nodejs:nodejs /app
